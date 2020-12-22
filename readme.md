@@ -1,5 +1,8 @@
 # 更新
 
+- 2020-01-22:21点31分 新增每日邮箱提醒功能，具体添加方法在下文。需要安装schedule库。
+- 2020-01-14:21点30分 更新新增基于网页内容相似度，网页标题自动过滤泛解析网站功能。
+- 2020-01-13:23点09分 更新下级子域名泛解析检测，更新网页备案信息爬虫规则，新增批量导入子域名网址文本功能，执行命令:python3 manage.py inserturl 子域名文件,比如-->python3 manage.py inserturl L:\CODE\src子域名20000条.txt。原用户需要执行两条命令:1. python3 manage.py makemigrations 2. python3 manage.py migrate，然后在后台进行相关设置后重启扫描。
 - 2019-12-28:16点04分 触发黑名单网址将会保存到数据库。原用户需要执行两条命令:1. python3 manage.py makemigrations 2. python3 manage.py migrate，然后在后台进行相关设置后重启扫描。
 - 2019-12-22:10点21分 后台管理-->监控域名表-->设置子域名是否监控状态。原用户需要执行两条命令:1. python3 manage.py makemigrations 2. python3 manage.py migrate，然后在后台进行相关设置后重启扫描。
 - 2019-12-15:14点55分 优化下一级子域名爆破扫描流程
@@ -27,9 +30,8 @@ LangSrcCurise资产监控系统是一套通过网络搜索引擎监控其下指�
 
 在1H2G1M的腾讯云Windows主机下，开启2个线程，2个进程，内存直接吃干净，还是没有开扫端口的情况下- -，最低配置不过如此~
 
-不过这种情况会在Linux下得到友善的优化，但是部署上Windows又比Linux轻松一百倍啊一百倍
+不过这种情况会在Linux下得到友善的优化，但是部署上Windows又比Linux轻松
 
-所以建议配置高点的主机~
 
 # 监控流程
 
@@ -53,6 +55,7 @@ LangSrcCurise资产监控系统是一套通过网络搜索引擎监控其下指�
 7. 通过  域名服务器      进行端口扫描，服务探测
 8. 通过  域名服务器      进行探测是否部署web服务
 9. 通过  域名服务器      进行其他数据清洗管理
+10. 每日自动推送监控报表到邮箱
 
 
 
@@ -116,21 +119,62 @@ Windows下推荐mysql.ini设置如下：
 	
 
 
-## 配置数据库信息
+## 配置数据库文件与邮箱信息
 
 在主目录下的 config.ini 文件中修改相关mysql登陆信息
 
 并且到securitytrails注册账号填写自己的API
 
+
+
 	[Server]
-	host = 127.0.0.1 # mysql登陆的ip，linux下设置为localhost，也可以填写服务器远程IP
-	port = 3306		# mysql 端口
+	host = 127.0.0.1 
+	# mysql登陆的ip，linux下设置为localhost，也可以填写服务器远程IP
+	port = 3306		
+	# mysql 端口
 	username = root
+	# mysql账号
 	password = root
-	dbname = LangSrcCurise # 你要是用的数据库名字，数据库自动创建
+	dbname = LangSrcCurise 
+	# 你要是用的数据库名字，数据库自动创建
 	[API]
 	securitytrails = PWOSUIBIANXIEDE886X
 	# https://securitytrails.com 注册，免费账户一个月可以查询50次
+
+下方为接受每日报表邮箱信息，每天下午20点30分自动发送到邮箱，如果需要修改发送时间，修改代码
+
+    core/Send_Report.py 
+    
+修改最下方时间点后，重启扫描端即可
+
+
+    [Email]
+    host = smtp.163.com
+    # 邮箱使用服务器，一般用的163邮箱或者qq邮箱，具体方法自行百度
+    port = 465
+    # 邮箱服务器端口
+    username = LangSrcCurise@163.com
+    # 邮箱账号
+    password = test12345
+    # 邮箱的密码，163或qq邮箱需要开启pop3服务后，得到授权码，这里填写授权码
+    receivers = 9966771@qq.com,9966772@qq.com,9966773@qq.com,9966774@qq.com
+    # 这里填写接收报告的邮箱地址，多个邮箱使用,分隔。单个邮箱填写单个邮箱地址即可。
+    
+
+每日推送当日24小时内最新捕获的子域名数据
+
+![](image/20200122-203118.jpg)
+
+并且将子域名资产详情整理成excel文档发送到邮箱
+
+![](image/20200122210157.jpg)
+
+
+**如果需要关闭游戏提醒功能，注释代码**
+
+	core/Run_Tasks.py
+
+第126行代码
 
 ## 初始化数据库
 
@@ -142,17 +186,6 @@ Windows下推荐mysql.ini设置如下：
 
 若出现django.session.table相关错误，修改settings.py中SECRET_KEY值为随机字符串
 
-## 初始化监控域名
-
-编辑监控域名
-
-	initialize/domains.list
-
-执行命令：在 主目录 LangSrcCurise 文件夹下依次执行如下命令：
-
-1. python3 manage.py initial
-
-完成将监控域名初始化到数据库
 
 **一些商城，旅游，同城等网站会使用大量的泛解析，所以需要自己适配黑名单过滤名单**
 
@@ -234,6 +267,19 @@ Windows下推荐mysql.ini设置如下：
 
 因为数据任务都是同时在跑，所以比较吃资源，建议线程等数量都设置在4或者以下，如果有点闲钱，可以上高配置开8进程。
 
+
+## 初始化监控域名
+
+编辑监控域名
+
+	initialize/domains.list
+
+执行命令：在 主目录 LangSrcCurise 文件夹下依次执行如下命令：
+
+1. python3 manage.py initial
+
+完成将监控域名初始化到数据库
+
 ## 开启扫描
 
 在 LangSrcCurise 文件夹下依次执行如下命令：
@@ -248,15 +294,31 @@ Windows下推荐mysql.ini设置如下：
 
 **默认不会扫描网址对应IP主机的端口服务，可以开启但是速度会降低，并且目前没有检测CDN，酌情处理，不建议开启**
 
-如果需要开启端口扫描：
+**默认不会扫描网址对应IP主机的端口服务，也就意味着IP端口资产未拥有，所以无法对数据进行统一清洗，需要注意的是，如果要开启清洗数据请务必先开启端口扫描**
+
+如果需要开启端口扫描并且对数据进行清洗：
 
 取消注释		
 
 	core/Run_Tasks.py  
 
-第111行和112行
+第130行和129行
 
 **还能扫描C段信息，取消部分注释就行，可以但没必要**
+
+## 导入批量子域名网址文本
+
+在 LangSrcCurise 文件夹下依次执行如下命令：
+
+	python3 manage.py inserturl 你的网址文本.txt
+
+比如：
+
+	python3 manage.py inserturl L:\CODE\src子域名20000条.txt
+
+
+会将文本中的网址进行自动去重，过滤，获取数据后保存到资产表数据中。
+
 
 ## 后续
 
@@ -280,7 +342,7 @@ Windows下推荐mysql.ini设置如下：
 
 访问地址：http://ip:8888/lsrc  后台管理
 
-**建议是每间隔72小时重启一次扫描端。**
+**建议是每间隔720小时重启一次扫描端。**
 
 如果要后续添加监控域名。有两种方法：
 
